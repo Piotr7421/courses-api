@@ -1,54 +1,72 @@
 package pl.spring.lessons.model;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.spring.lessons.common.Language;
 
-import java.util.Set;
+import java.time.LocalDateTime;
 
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
 @Getter
 @Setter
-@Entity
 @Builder
-public class Student {
+public class Lesson {
 
-    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
     private int id;
 
-    private String firstName;
-    private String lastName;
-
-    @Enumerated(EnumType.STRING)
-    private Language language;
+    private LocalDateTime date;
 
     @ManyToOne
     @JoinColumn(name = "teacher_id")
     private Teacher teacher;
 
-    @OneToMany(mappedBy = "student")
-    private Set<Lesson> lessons;
+    @ManyToOne
+    @JoinColumn(name = "student_id")
+    private Student student;
 
     @Version
     private int version;
 
-    @Override
-    public String toString() {
-        return firstName + " " + lastName;
-    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
