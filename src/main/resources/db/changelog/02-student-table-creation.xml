@@ -19,7 +19,10 @@
                 <constraints nullable="false"/>
             </column>
             <column name="teacher_id" type="int">
-                <constraints nullable="true" foreignKeyName="fk_student_teacher" references="teacher(id)"/>
+                <constraints nullable="false" foreignKeyName="fk_student_teacher" references="teacher(id)"/>
+            </column>
+            <column name="active" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
             </column>
             <column name="version" type="int" defaultValueNumeric="0">
                 <constraints nullable="false"/>
