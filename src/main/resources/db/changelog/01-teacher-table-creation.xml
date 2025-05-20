@@ -15,6 +15,9 @@
             <column name="last_name" type="varchar(255)">
                 <constraints nullable="false"/>
             </column>
+            <column name="active" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
             <column name="version" type="int" defaultValueNumeric="0">
                 <constraints nullable="false"/>
             </column>
@@ -23,6 +26,9 @@
         <createTable tableName="teacher_language">
             <column name="teacher_id" type="int">
                 <constraints nullable="false" foreignKeyName="fk_teacher_language_teacher" references="teacher(id)"/>
+            </column>
+            <column name="active" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
             </column>
             <column name="language" type="varchar(50)">
                 <constraints nullable="false"/>
