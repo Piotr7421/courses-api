@@ -66,6 +66,39 @@ Each entity has its own 3-layer structure.
 
 ---
 
-## 🚀 Getting Started
+## 🗄️ Database Setup
 
-Coming soon...
+Before running the application, create a database schema manually.
+
+> **Schema name:** `courses_api`
+
+Tables and constraints will be created automatically via **Liquibase** on application startup.
+
+You can use a local MySQL instance or Docker-based MySQL container.
+
+---
+
+## 🔌 API Usage
+
+This project exposes a set of **RESTful endpoints**, implemented in controller classes:
+
+- `StudentController`
+- `TeacherController`
+- `LessonController` 
+
+You can test these endpoints using tools such as:
+
+- [Postman](https://www.postman.com/)
+- [Insomnia](https://insomnia.rest/)
+- `curl` in terminal
+
+Each controller follows typical CRUD conventions, e.g.:
+
+- `GET /teachers`
+- `POST /students`
+- `DELETE /lessons/{id}`
+- etc.
+
+For detailed request/response formats, check the respective controller class or inspect with Postman.
+
+---
