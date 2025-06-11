@@ -1,5 +1,6 @@
 package pl.spring.courses.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -14,7 +15,8 @@ import java.time.LocalDateTime;
 public class LessonDto {
 
     private int id;
+    @JsonFormat(pattern = "dd-MM-yyyy HH:mm")
     private LocalDateTime date;
-    private TeacherDto teacher;
-    private StudentDto student;
+    private int teacherId;
+    private int studentId;
 }

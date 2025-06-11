@@ -23,6 +23,7 @@ public class CreateStudentCommand {
     @Pattern(regexp = "[A-Z][a-z]{1,19}", message = "PATTERN_MISMATCH_{regexp}")
     private String lastName;
 
+    @NotNull(message = "NULL_VALUE")
     @Enumerated(EnumType.STRING)
     private Language language;
 

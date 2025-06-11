@@ -21,7 +21,7 @@
             <column name="teacher_id" type="int">
                 <constraints nullable="false" foreignKeyName="fk_student_teacher" references="teacher(id)"/>
             </column>
-            <column name="active" type="tinyint" defaultValueNumeric="1">
+            <column name="active" type="bit" defaultValueNumeric="1">
                 <constraints nullable="false"/>
             </column>
             <column name="version" type="int" defaultValueNumeric="0">

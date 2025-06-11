@@ -10,10 +10,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import pl.spring.courses.common.Language;
 import pl.spring.courses.exception.DatabaseConstraintException;
 import pl.spring.courses.exception.IncompatibleTeacherLanguageException;
 import pl.spring.courses.exception.StudentNotFoundException;
+import pl.spring.courses.exception.TeacherLockTimeoutException;
 import pl.spring.courses.exception.TeacherNotFoundException;
 import pl.spring.courses.exception.TeacherOptimisticLockException;
 import pl.spring.courses.mapper.StudentMapper;
@@ -180,7 +182,7 @@ class StudentServiceTest {
     @Test
     void create_HappyPath_ShouldCreateStudent() {
 
-        when(teacherRepository.findWithLockingById(teacher.getId())).thenReturn(Optional.of(teacher));
+        when(teacherRepository.findWithPessimisticLockingById(teacher.getId())).thenReturn(Optional.of(teacher));
         doNothing().when(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
         when(studentRepository.saveAndFlush(studentToSave)).thenReturn(student);
 
@@ -188,7 +190,7 @@ class StudentServiceTest {
 
         assertThat(result.getId()).isEqualTo(studentDto.getId());
 
-        verify(teacherRepository).findWithLockingById(createStudentCommand.getTeacherId());
+        verify(teacherRepository).findWithPessimisticLockingById(createStudentCommand.getTeacherId());
         verify(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
         verify(studentRepository).saveAndFlush(studentCaptor.capture());
 
@@ -200,7 +202,7 @@ class StudentServiceTest {
     }
 
     @Test
-    void create_WhenTeacherNotFound_ShouldThrowException() {
+    void create_WhenTeacherNotFound_ShouldThrowTeacherNotFoundException() {
         int nonExistentTeacherId = 10;
         CreateStudentCommand commandWithNonExistentTeacher = CreateStudentCommand.builder()
                 .firstName("Jan")
@@ -210,15 +212,29 @@ class StudentServiceTest {
                 .build();
         String expectedExceptionMsg = MessageFormat
                 .format("Teacher with id={0} not found", nonExistentTeacherId);
-        when(teacherRepository.findWithLockingById(nonExistentTeacherId)).thenReturn(Optional.empty());
+        when(teacherRepository.findWithPessimisticLockingById(nonExistentTeacherId)).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(TeacherNotFoundException.class)
                 .isThrownBy(() -> studentService.create(commandWithNonExistentTeacher))
                 .withMessage(expectedExceptionMsg);
 
-        verify(teacherRepository).findWithLockingById(nonExistentTeacherId);
+        verify(teacherRepository).findWithPessimisticLockingById(nonExistentTeacherId);
         verify(teacherLanguageValidator, never()).validateTeacherLanguage(any(Teacher.class), any(Student.class));
         verify(studentRepository, never()).saveAndFlush(any(Student.class));
+    }
+
+    @Test
+    void create_WhenPessimisticLockingFailureException_ShouldThrowTeacherLockTimeoutException() {
+        when(teacherRepository.findWithPessimisticLockingById(createStudentCommand.getTeacherId()))
+                .thenThrow(new PessimisticLockingFailureException("JDBC exception executing SQL [select ... for update] [Lock wait timeout exceeded; try restarting transaction] [n/a]; SQL [n/a]"));
+
+        assertThatExceptionOfType(TeacherLockTimeoutException.class)
+                .isThrownBy(() -> studentService.create(createStudentCommand))
+                .withMessage("Could not acquire lock on teacher - operation timed out");
+
+        verify(teacherRepository).findWithPessimisticLockingById(createStudentCommand.getTeacherId());
+        verify(teacherLanguageValidator, never()).validateTeacherLanguage(teacher, studentToSave);
+        verify(studentRepository, never()).saveAndFlush(studentToSave);
     }
 
     @Test
@@ -227,7 +243,7 @@ class StudentServiceTest {
                 "Incompatible teacher language, teacher id={0}, language={1}",
                 teacher.getId(),
                 studentToSave.getLanguage());
-        when(teacherRepository.findWithLockingById(createStudentCommand.getTeacherId())).thenReturn(Optional.of(teacher));
+        when(teacherRepository.findWithPessimisticLockingById(createStudentCommand.getTeacherId())).thenReturn(Optional.of(teacher));
         doThrow(new IncompatibleTeacherLanguageException(expectedExceptionMsg))
                 .when(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
 
@@ -235,14 +251,14 @@ class StudentServiceTest {
                 .isThrownBy(() -> studentService.create(createStudentCommand))
                 .withMessage(expectedExceptionMsg);
 
-        verify(teacherRepository).findWithLockingById(createStudentCommand.getTeacherId());
+        verify(teacherRepository).findWithPessimisticLockingById(createStudentCommand.getTeacherId());
         verify(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
         verify(studentRepository, never()).saveAndFlush(any(Student.class));
     }
 
     @Test
     void create_WhenDataIntegrityViolationException_ShouldThrowDatabaseConstraintException() {
-        when(teacherRepository.findWithLockingById(createStudentCommand.getTeacherId())).thenReturn(Optional.of(teacher));
+        when(teacherRepository.findWithPessimisticLockingById(createStudentCommand.getTeacherId())).thenReturn(Optional.of(teacher));
         doNothing().when(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
         when(studentRepository.saveAndFlush(studentToSave))
                 .thenThrow(new DataIntegrityViolationException("Database integrity constraint violation occurred"));
@@ -251,30 +267,14 @@ class StudentServiceTest {
                 .isThrownBy(() -> studentService.create(createStudentCommand))
                 .withMessage("Violation of integrity constraints while student insertion to the database");
 
-        verify(teacherRepository).findWithLockingById(createStudentCommand.getTeacherId());
+        verify(teacherRepository).findWithPessimisticLockingById(createStudentCommand.getTeacherId());
         verify(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
         verify(studentRepository).saveAndFlush(studentToSave);
     }
 
-    @Test
-    void create_WhenOptimisticLockingFailureException_ShouldThrowTeacherOptimisticLockException() {
-        when(teacherRepository.findWithLockingById(createStudentCommand.getTeacherId())).thenReturn(Optional.of(teacher));
-        doNothing().when(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
-        when(studentRepository.saveAndFlush(studentToSave))
-                .thenThrow(new OptimisticLockingFailureException("DB optimistic lock error"));
-
-        assertThatExceptionOfType(TeacherOptimisticLockException.class)
-                .isThrownBy(() -> studentService.create(createStudentCommand))
-                .withMessage("Teacher was modified by another transaction");
-
-        verify(teacherRepository).findWithLockingById(createStudentCommand.getTeacherId());
-        verify(teacherLanguageValidator).validateTeacherLanguage(teacher, studentToSave);
-        verify(studentRepository).saveAndFlush(studentToSave);
-    }
-
-    @Test
+        @Test
     void update_HappyPath_ShouldUpdateStudent() {
-        when(teacherRepository.findWithLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
+        when(teacherRepository.findWithPessimisticLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
         when(studentRepository.findWithLockingById(student.getId())).thenReturn(Optional.of(student));
         doNothing().when(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
         when(studentRepository.saveAndFlush(student)).thenReturn(student);
@@ -288,7 +288,7 @@ class StudentServiceTest {
 
         assertThat(result.getTeacherId()).isEqualTo(newTeacher.getId());
 
-        verify(teacherRepository).findWithLockingById(newTeacher.getId());
+        verify(teacherRepository).findWithPessimisticLockingById(newTeacher.getId());
         verify(studentRepository).findWithLockingById(student.getId());
         verify(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
 
@@ -302,31 +302,47 @@ class StudentServiceTest {
     }
 
     @Test
-    void update_WhenTeacherNotFound_ShouldThrowException() {
+    void update_WhenTeacherNotFound_ShouldThrowTeacherNotFoundException() {
         String expectedExceptionMsg = MessageFormat.format("Teacher with id={0} not found", newTeacher.getId());
-        when(teacherRepository.findWithLockingById(newTeacher.getId())).thenReturn(Optional.empty());
+        when(teacherRepository.findWithPessimisticLockingById(newTeacher.getId())).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(TeacherNotFoundException.class)
                 .isThrownBy(() -> studentService.update(newTeacher.getId(), updateStudentCommand))
                 .withMessage(expectedExceptionMsg);
 
-        verify(teacherRepository).findWithLockingById(newTeacher.getId());
+        verify(teacherRepository).findWithPessimisticLockingById(newTeacher.getId());
         verify(studentRepository, never()).findWithLockingById(student.getId());
         verify(teacherLanguageValidator, never()).validateTeacherLanguage(newTeacher, student);
     }
 
     @Test
+    void update_WhenPessimisticLockingFailureException_ShouldThrowTeacherLockTimeoutException() {
+        when(teacherRepository.findWithPessimisticLockingById(newTeacher.getId()))
+                .thenThrow(new PessimisticLockingFailureException("JDBC exception executing SQL [select ... for update] [Lock wait timeout exceeded; try restarting transaction] [n/a]; SQL [n/a]"));
+
+        assertThatExceptionOfType(TeacherLockTimeoutException.class)
+                .isThrownBy(() -> studentService.update(student.getId(), updateStudentCommand))
+                .withMessage("Could not acquire lock on teacher - operation timed out");
+
+        verify(teacherRepository).findWithPessimisticLockingById(newTeacher.getId());
+        verify(studentRepository, never()).findWithLockingById(student.getId());
+        verify(teacherLanguageValidator, never()).validateTeacherLanguage(newTeacher, student);
+        verify(studentRepository, never()).saveAndFlush(student);
+    }
+
+
+    @Test
     void update_WhenStudentNotFound_ShouldThrowException() {
         student.setTeacher(newTeacher);
         String expectedExceptionMsg = MessageFormat.format("Student with id={0} not found", student.getId());
-        when(teacherRepository.findWithLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
+        when(teacherRepository.findWithPessimisticLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
         when(studentRepository.findWithLockingById(student.getId())).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(StudentNotFoundException.class)
                 .isThrownBy(() -> studentService.update(student.getId(), updateStudentCommand))
                 .withMessage(expectedExceptionMsg);
 
-        verify(teacherRepository).findWithLockingById(newTeacher.getId());
+        verify(teacherRepository).findWithPessimisticLockingById(newTeacher.getId());
         verify(studentRepository).findWithLockingById(student.getId());
         verify(teacherLanguageValidator, never()).validateTeacherLanguage(newTeacher, student);
         verify(studentRepository, never()).saveAndFlush(student);
@@ -338,7 +354,7 @@ class StudentServiceTest {
                 "Incompatible teacher language, teacher id={0}, language={1}",
                 newTeacher.getId(),
                 student.getLanguage());
-        when(teacherRepository.findWithLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
+        when(teacherRepository.findWithPessimisticLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
         when(studentRepository.findWithLockingById(student.getId())).thenReturn(Optional.of(student));
         doThrow(new IncompatibleTeacherLanguageException(expectedExceptionMsg))
                 .when(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
@@ -347,7 +363,7 @@ class StudentServiceTest {
                 .isThrownBy(() -> studentService.update(student.getId(), updateStudentCommand))
                 .withMessage(expectedExceptionMsg);
 
-        verify(teacherRepository).findWithLockingById(newTeacher.getId());
+        verify(teacherRepository).findWithPessimisticLockingById(newTeacher.getId());
         verify(studentRepository).findWithLockingById(student.getId());
         verify(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
         verify(studentRepository, never()).saveAndFlush(student);
@@ -355,7 +371,7 @@ class StudentServiceTest {
 
     @Test
     void update_WhenDataIntegrityViolationException_ShouldThrowDatabaseConstraintException() {
-        when(teacherRepository.findWithLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
+        when(teacherRepository.findWithPessimisticLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
         when(studentRepository.findWithLockingById(student.getId())).thenReturn(Optional.of(student));
         doNothing().when(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
         when(studentRepository.saveAndFlush(student))
@@ -365,25 +381,7 @@ class StudentServiceTest {
                 .isThrownBy(() -> studentService.update(student.getId(), updateStudentCommand))
                 .withMessage("Violation of integrity constraints while student update to the database");
 
-        verify(teacherRepository).findWithLockingById(newTeacher.getId());
-        verify(studentRepository).findWithLockingById(student.getId());
-        verify(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
-        verify(studentRepository).saveAndFlush(student);
-    }
-
-    @Test
-    void update_WhenOptimisticLockingFailureException_ShouldThrowTeacherOptimisticLockException() {
-        when(teacherRepository.findWithLockingById(newTeacher.getId())).thenReturn(Optional.of(newTeacher));
-        when(studentRepository.findWithLockingById(student.getId())).thenReturn(Optional.of(student));
-        doNothing().when(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
-        when(studentRepository.saveAndFlush(student))
-                .thenThrow(new OptimisticLockingFailureException("DB optimistic lock error"));
-
-        assertThatExceptionOfType(TeacherOptimisticLockException.class)
-                .isThrownBy(() -> studentService.update(student.getId(), updateStudentCommand))
-                .withMessage("Teacher was modified by another transaction");
-
-        verify(teacherRepository).findWithLockingById(newTeacher.getId());
+        verify(teacherRepository).findWithPessimisticLockingById(newTeacher.getId());
         verify(studentRepository).findWithLockingById(student.getId());
         verify(teacherLanguageValidator).validateTeacherLanguage(newTeacher, student);
         verify(studentRepository).saveAndFlush(student);
