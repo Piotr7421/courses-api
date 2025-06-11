@@ -10,8 +10,8 @@ public class LessonMapper {
         return LessonDto.builder()
                 .id(lesson.getId())
                 .date(lesson.getDate())
-                .teacher(TeacherMapper.mapToDto(lesson.getTeacher()))
-                .student(StudentMapper.mapToDto(lesson.getStudent()))
+                .teacherId(lesson.getTeacher().getId())
+                .studentId(lesson.getStudent().getId())
                 .build();
     }
 

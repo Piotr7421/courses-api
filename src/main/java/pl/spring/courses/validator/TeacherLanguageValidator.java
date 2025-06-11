@@ -17,13 +17,11 @@ public class TeacherLanguageValidator {
 
     private final StudentRepository studentRepository;
 
-    @Transactional(readOnly = true)
     public void validateTeacherLanguages(Teacher teacher) {
         Set<Student> students = studentRepository.findAllByTeacherId(teacher.getId());
         students.forEach(student -> validateTeacherLanguage(teacher, student));
     }
 
-    @Transactional(readOnly = true)
     public void validateTeacherLanguage(Teacher teacher, Student student) {
         if (!teacher.getLanguages().contains(student.getLanguage())) {
             throw new IncompatibleTeacherLanguageException(MessageFormat

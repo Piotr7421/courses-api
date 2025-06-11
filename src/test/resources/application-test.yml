@@ -4,14 +4,16 @@ spring:
     username: sa
     password: password
     driverClassName: org.h2.Driver
-#  h2:
-#    console:
-#      enabled: true
+    hikari:
+      connection-init-sql:
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     properties:
       hibernate:
-#        generate_statistics: true
         enable_lazy_load_no_trans: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+  liquibase:
+    change-log: classpath:db/db.changelog-master.xml
+    enabled: true
+    drop-first: true

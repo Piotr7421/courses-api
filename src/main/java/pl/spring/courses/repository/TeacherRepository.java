@@ -17,6 +17,10 @@ public interface TeacherRepository extends JpaRepository<Teacher, Integer> {
     @EntityGraph(attributePaths = "languages")
     Optional<Teacher> findWithLockingById(int teacherId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = "languages")
+    Optional<Teacher> findWithPessimisticLockingById(int teacherId);
+
     @EntityGraph(attributePaths = "languages")
     List<Teacher> findAll();
 

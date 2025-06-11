@@ -27,14 +27,12 @@ public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final TeacherLanguageValidator teacherLanguageValidator;
 
-    @Transactional(readOnly = true)
     public List<TeacherDto> findAll() {
         return teacherRepository.findAll().stream()
                 .map(TeacherMapper::mapToDto)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public TeacherDto findById(int id) {
         return teacherRepository.findById(id)
                 .map(TeacherMapper::mapToDto)

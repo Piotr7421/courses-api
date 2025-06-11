@@ -3,12 +3,14 @@ package pl.spring.courses.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.spring.courses.exception.DatabaseConstraintException;
 import pl.spring.courses.exception.StudentNotFoundException;
+import pl.spring.courses.exception.StudentOptimisticLockException;
+import pl.spring.courses.exception.TeacherLockTimeoutException;
 import pl.spring.courses.exception.TeacherNotFoundException;
-import pl.spring.courses.exception.TeacherOptimisticLockException;
 import pl.spring.courses.mapper.StudentMapper;
 import pl.spring.courses.model.Student;
 import pl.spring.courses.model.Teacher;
@@ -30,14 +32,12 @@ public class StudentService {
     private final TeacherRepository teacherRepository;
     private final TeacherLanguageValidator teacherLanguageValidator;
 
-    @Transactional(readOnly = true)
     public List<StudentDto> findAll() {
         return studentRepository.findAll().stream()
                 .map(StudentMapper::mapToDto)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public StudentDto findById(int id) {
         return studentRepository.findById(id)
                 .map(StudentMapper::mapToDto)
@@ -48,9 +48,14 @@ public class StudentService {
     @Transactional
     public StudentDto create(CreateStudentCommand command) {
         int teacherId = command.getTeacherId();
-        Teacher teacher = teacherRepository.findWithLockingById(teacherId)
-                .orElseThrow(() -> new TeacherNotFoundException((MessageFormat
-                        .format("Teacher with id={0} not found", teacherId))));
+        Teacher teacher;
+        try {
+            teacher = teacherRepository.findWithPessimisticLockingById(teacherId)
+                    .orElseThrow(() -> new TeacherNotFoundException((MessageFormat
+                            .format("Teacher with id={0} not found", teacherId))));
+        } catch (PessimisticLockingFailureException e) {
+            throw new TeacherLockTimeoutException("Could not acquire lock on teacher - operation timed out");
+        }
         Student student = StudentMapper.mapFromCommand(command);
         teacherLanguageValidator.validateTeacherLanguage(teacher, student);
         student.setTeacher(teacher);
@@ -58,17 +63,20 @@ public class StudentService {
             return StudentMapper.mapToDto(studentRepository.saveAndFlush(student));
         } catch (DataIntegrityViolationException e) {
             throw new DatabaseConstraintException("Violation of integrity constraints while student insertion to the database");
-        } catch (OptimisticLockingFailureException e) {
-            throw new TeacherOptimisticLockException("Teacher was modified by another transaction");
         }
     }
 
     @Transactional
     public StudentDto update(int id, UpdateStudentCommand command) {
         int teacherId = command.getTeacherId();
-        Teacher teacher = teacherRepository.findWithLockingById(teacherId)
-                .orElseThrow(() -> new TeacherNotFoundException(MessageFormat
-                        .format("Teacher with id={0} not found", teacherId)));
+        Teacher teacher;
+        try {
+            teacher = teacherRepository.findWithPessimisticLockingById(teacherId)
+                    .orElseThrow(() -> new TeacherNotFoundException(MessageFormat
+                            .format("Teacher with id={0} not found", teacherId)));
+        } catch (PessimisticLockingFailureException e) {
+            throw new TeacherLockTimeoutException("Could not acquire lock on teacher - operation timed out");
+        }
         Student student = studentRepository.findWithLockingById(id)
                 .orElseThrow(() -> new StudentNotFoundException(MessageFormat
                         .format("Student with id={0} not found", id)));
@@ -79,7 +87,7 @@ public class StudentService {
         } catch (DataIntegrityViolationException e) {
             throw new DatabaseConstraintException("Violation of integrity constraints while student update to the database");
         } catch (OptimisticLockingFailureException e) {
-            throw new TeacherOptimisticLockException("Teacher was modified by another transaction");
+            throw new StudentOptimisticLockException("Student was modified by another transaction");
         }
     }
 

@@ -9,8 +9,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pl.spring.courses.exception.DatabaseConstraintException;
 import pl.spring.courses.exception.IncompatibleTeacherLanguageException;
 import pl.spring.courses.exception.InvalidLanguageException;
+import pl.spring.courses.exception.LessonAlreadyStartedException;
+import pl.spring.courses.exception.LessonNotFoundException;
+import pl.spring.courses.exception.OverlappingLessonException;
 import pl.spring.courses.exception.StudentNotFoundException;
+import pl.spring.courses.exception.StudentOptimisticLockException;
 import pl.spring.courses.exception.TeacherHasStudentsException;
+import pl.spring.courses.exception.TeacherLockTimeoutException;
 import pl.spring.courses.exception.TeacherNotFoundException;
 import pl.spring.courses.exception.TeacherOptimisticLockException;
 import pl.spring.courses.exception.model.ExceptionDto;
@@ -40,15 +45,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             TeacherNotFoundException.class,
-            StudentNotFoundException.class
+            StudentNotFoundException.class,
+            LessonNotFoundException.class
     })
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ExceptionDto handleNotFoundExceptions(RuntimeException exception) {
         return new ExceptionDto(exception.getMessage());
     }
 
-    @ExceptionHandler({TeacherOptimisticLockException.class,
-            TeacherHasStudentsException.class})
+    @ExceptionHandler({
+            TeacherOptimisticLockException.class,
+            TeacherHasStudentsException.class,
+            LessonAlreadyStartedException.class,
+            TeacherLockTimeoutException.class,
+            StudentOptimisticLockException.class,
+            OverlappingLessonException.class
+    })
     @ResponseStatus(HttpStatus.CONFLICT)
     public ExceptionDto handleSpecifiedOptimisticExceptions(RuntimeException exception) {
         return new ExceptionDto(exception.getMessage());

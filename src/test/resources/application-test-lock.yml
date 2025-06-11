@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/courses_api
+    url: jdbc:mysql://localhost:3306/courses_test_lock
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
