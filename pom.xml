@@ -8,7 +8,7 @@
         <version>3.4.4</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>pl.spring</groupId>
+    <groupId>io.github.Piotr7421</groupId>
     <artifactId>courses-api</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>courses-api</name>
